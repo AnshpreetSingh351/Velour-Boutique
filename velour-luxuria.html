@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VELOUR — Blessing Luxuria</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;1,300;1,400&family=Tenor+Sans&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="velour-luxuria.css"/>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div class="grain"></div>
+<div class="vignette"></div>
+<div id="prog"></div>
+<div id="cur"></div>
+<div id="cur-r"></div>
+
+<!-- Scene nav dots -->
+<div class="s-nav">
+  <div class="s-nd on" id="d0"></div>
+  <div class="s-nd" id="d1"></div>
+  <div class="s-nd" id="d2"></div>
+</div>
+
+<!-- Scroll hint (hidden after first snap) -->
+<div id="sh"><div class="sh-bar"></div><div class="sh-txt">Scroll</div></div>
+
+<!-- Colour picker -->
+<div id="cp">
+  <div class="cp-lbl">Shade</div>
+  <div class="cp-sw">
+    <div class="sw active" data-n="Rouge Absolu"  data-ht="#F03060" data-hb="#8A0A28" data-c="0xB01830" style="background:radial-gradient(circle at 35% 35%,#D03560,#8A0A28)"></div>
+    <div class="sw"        data-n="Terracotta"    data-ht="#E07838" data-hb="#8A3018" data-c="0xA04020" style="background:radial-gradient(circle at 35% 35%,#D4704A,#8A3018)"></div>
+    <div class="sw"        data-n="Rosé Lumière"  data-ht="#E08898" data-hb="#A04860" data-c="0x904060" style="background:radial-gradient(circle at 35% 35%,#D88090,#A04860)"></div>
+    <div class="sw"        data-n="Bordeaux"      data-ht="#8A2848" data-hb="#3A0818" data-c="0x6A1030" style="background:radial-gradient(circle at 35% 35%,#782040,#3A0818)"></div>
+    <div class="sw"        data-n="Nude Velvet"   data-ht="#C08060" data-hb="#7A4030" data-c="0x8A5038" style="background:radial-gradient(circle at 35% 35%,#C08060,#7A4030)"></div>
+  </div>
+</div>
+
+<!-- ══ SNAP SCROLL CONTAINER ══ -->
+<div id="snap-wrap">
+
+  <!-- Section 1: Brand + ERA -->
+  <section class="sec" id="s1">
+    <div class="vname">VELOUR</div>
+    <div class="vitalic">Prestige Lip Colour</div>
+    <div class="vsub">Blessing Luxuria · South City · Ludhiana</div>
+
+    <div class="era-block">
+      <div class="era-line"><span>A New Era of</span></div>
+      <div class="era-line"><span>Boutique Retail</span></div>
+      <div class="era-line"><span>Begins Here.</span></div>
+      <div class="era-rule">
+        <div class="era-rule-line"></div>
+        <div class="era-rule-txt">Be Ready · Ludhiana</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 2: Story -->
+  <section class="sec" id="s2">
+    <div class="ey">The Edit</div>
+    <h2 class="s2h">Where colour<br><em>becomes<br>identity.</em></h2>
+    <p class="s2p">Every shade in the VELOUR collection is an act of intention — sculpted for depth, longevity and the sensation of something extraordinary.</p>
+  </section>
+
+  <!-- Section 3: CTA -->
+  <section class="sec" id="s3">
+    <div class="s3ey">South City · Ludhiana · Punjab</div>
+    <div class="cbe">Be<em>Ready.</em></div>
+    <div class="s3rule"></div>
+    <div class="s3tag">A New Era of Boutique Retail Begins Here.</div>
+    <div class="s3btns">
+      <a class="btn-fill"  href="#">Register Interest</a>
+      <a class="btn-ghost" href="#">Download Lookbook</a>
+    </div>
+    <div class="s3foot">
+      <div class="s3loc">Blessing Luxuria</div>
+      <div class="ssep"></div>
+      <div class="bsig">BLESSING <em>— luxuria —</em> × WESTERN LIVING</div>
+      <div class="ssep"></div>
+      <div class="rera">PBRERA-LDH45-PC0226</div>
+    </div>
+  </section>
+
+</div><!-- /snap-wrap -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  if (typeof THREE === 'undefined') return;
+
+  /* ══════════════════════════════════
+     SECTION / SNAP TRACKING
+     Works identically on desktop & mobile.
+     #snap-wrap handles all scrolling.
+     JS reads which section is in view.
+  ══════════════════════════════════ */
+  var wrap    = document.getElementById('snap-wrap');
+  var secs    = [document.getElementById('s1'), document.getElementById('s2'), document.getElementById('s3')];
+  var dnav    = [document.getElementById('d0'), document.getElementById('d1'), document.getElementById('d2')];
+  var progEl  = document.getElementById('prog');
+  var shEl    = document.getElementById('sh');
+  var cpEl    = document.getElementById('cp');
+
+  var currentSection = 0;   // 0, 1, 2
+  var targetSection  = 0;
+  var smoothSec      = 0.0; // smooth 0–2 float used for 3D lerp
+
+  /* Track which section is active via IntersectionObserver */
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        var idx = secs.indexOf(e.target);
+        if (idx >= 0) {
+          currentSection = idx;
+          targetSection  = idx;
+          /* progress bar */
+          progEl.style.width = (idx / (secs.length - 1) * 100) + '%';
+          /* nav dots */
+          dnav.forEach(function (d, i) { d.classList.toggle('on', i === idx); });
+          /* scroll hint: hide after first snap */
+          if (idx > 0) shEl.style.opacity = '0';
+          else         shEl.style.opacity = '1';
+        }
+      }
+    });
+  }, { root: wrap, threshold: 0.55 });
+  secs.forEach(function (s) { io.observe(s); });
+
+  /* Dot click → scroll to section */
+  dnav.forEach(function (d, i) {
+    d.addEventListener('click', function () {
+      secs[i].scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  /* ══════════════════════════════════
+     CURSOR
+  ══════════════════════════════════ */
+  var cur  = document.getElementById('cur');
+  var curR = document.getElementById('cur-r');
+  var mx = innerWidth / 2, my = innerHeight / 2, rx = mx, ry = my;
+  document.addEventListener('mousemove', function (e) { mx = e.clientX; my = e.clientY; });
+  (function ac() {
+    rx += (mx - rx) * .1; ry += (my - ry) * .1;
+    cur.style.left  = mx + 'px'; cur.style.top  = my + 'px';
+    curR.style.left = rx + 'px'; curR.style.top = ry + 'px';
+    requestAnimationFrame(ac);
+  })();
+
+  /* ══════════════════════════════════
+     THREE.JS SETUP
+  ══════════════════════════════════ */
+  var canvas   = document.getElementById('c');
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+  renderer.toneMapping       = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  renderer.setClearColor(0x07050A, 1);
+
+  var scene  = new THREE.Scene();
+  scene.background = new THREE.Color(0x07050A);
+  var camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .01, 200);
+  camera.position.set(0, .5, 9);
+
+  /* ENV MAP */
+  function buildEnv() {
+    var ec = document.createElement('canvas'); ec.width = 1024; ec.height = 512;
+    var c = ec.getContext('2d');
+    var g = c.createLinearGradient(0, 0, 1024, 512);
+    g.addColorStop(0,   '#0a0508'); g.addColorStop(.14, '#1c0e0b');
+    g.addColorStop(.32, '#3e1b10'); g.addColorStop(.44, '#ffe8c0');
+    g.addColorStop(.52, '#fff2e8'); g.addColorStop(.63, '#2a1505');
+    g.addColorStop(.77, '#0d1020'); g.addColorStop(.89, '#c89050');
+    g.addColorStop(1,   '#0a0508');
+    c.fillStyle = g; c.fillRect(0, 0, 1024, 512);
+    var s = c.createRadialGradient(440, 175, 0, 440, 175, 175);
+    s.addColorStop(0, 'rgba(255,242,215,.88)'); s.addColorStop(1, 'rgba(255,242,215,0)');
+    c.fillStyle = s; c.fillRect(0, 0, 1024, 512);
+    var t = new THREE.CanvasTexture(ec);
+    t.mapping = THREE.EquirectangularReflectionMapping;
+    return t;
+  }
+  var envMap = buildEnv();
+  scene.environment = envMap;
+
+  /* TEXTURES */
+  function makeBrushed() {
+    var ec = document.createElement('canvas'); ec.width = 512; ec.height = 512;
+    var c = ec.getContext('2d');
+    var g = c.createLinearGradient(0, 0, 512, 0);
+    g.addColorStop(0, '#6A3A20'); g.addColorStop(.25, '#B07850');
+    g.addColorStop(.5, '#D8A880'); g.addColorStop(.75, '#B07850'); g.addColorStop(1, '#6A3A20');
+    c.fillStyle = g; c.fillRect(0, 0, 512, 512);
+    for (var i = 0; i < 440; i++) {
+      var y = Math.random() * 512;
+      c.beginPath(); c.moveTo(0, y); c.lineTo(512, y);
+      c.strokeStyle = 'rgba(255,255,255,' + (Math.random() * .028) + ')';
+      c.lineWidth = 1; c.stroke();
+    }
+    return new THREE.CanvasTexture(ec);
+  }
+  function makeGold() {
+    var ec = document.createElement('canvas'); ec.width = 512; ec.height = 64;
+    var c = ec.getContext('2d');
+    var g = c.createLinearGradient(0, 0, 512, 0);
+    g.addColorStop(0, '#7A5010'); g.addColorStop(.2, '#C89038'); g.addColorStop(.4, '#F0D878');
+    g.addColorStop(.5, '#FFFACC'); g.addColorStop(.6, '#F0D878'); g.addColorStop(.8, '#C89038'); g.addColorStop(1, '#7A5010');
+    c.fillStyle = g; c.fillRect(0, 0, 512, 64);
+    return new THREE.CanvasTexture(ec);
+  }
+  var bCan = document.createElement('canvas'); bCan.width = 256; bCan.height = 512;
+  function drawBullet(ht, hb) {
+    var c = bCan.getContext('2d'); c.clearRect(0, 0, 256, 512);
+    function hx(h) { var n = parseInt(h.replace('#',''), 16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+    var t = hx(ht), b = hx(hb);
+    var dk = 'rgb('+Math.round(b[0]*.5)+','+Math.round(b[1]*.5)+','+Math.round(b[2]*.5)+')';
+    var md = 'rgb('+t[0]+','+t[1]+','+t[2]+')';
+    var lt = 'rgb('+Math.min(255,Math.round(t[0]*1.3))+','+Math.min(255,Math.round(t[1]*1.3))+','+Math.min(255,Math.round(t[2]*1.3))+')';
+    var g = c.createLinearGradient(0, 0, 256, 0);
+    g.addColorStop(0, dk); g.addColorStop(.22, 'rgb('+b[0]+','+b[1]+','+b[2]+')');
+    g.addColorStop(.46, md); g.addColorStop(.5, lt); g.addColorStop(.54, md);
+    g.addColorStop(.78, 'rgb('+b[0]+','+b[1]+','+b[2]+')'); g.addColorStop(1, dk);
+    c.fillStyle = g; c.fillRect(0, 0, 256, 512);
+    var sh = c.createLinearGradient(75, 0, 135, 512);
+    sh.addColorStop(0, 'rgba(255,220,220,0)'); sh.addColorStop(.5, 'rgba(255,220,220,.13)'); sh.addColorStop(1, 'rgba(255,220,220,0)');
+    c.fillStyle = sh; c.fillRect(0, 0, 256, 512);
+    return new THREE.CanvasTexture(bCan);
+  }
+  function rebuildAura(ht) {
+    var ec = document.createElement('canvas'); ec.width = 512; ec.height = 1024;
+    var c = ec.getContext('2d');
+    function hx(h) { var n = parseInt(h.replace('#',''), 16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+    var t = hx(ht);
+    var ag = c.createRadialGradient(256, 600, 0, 256, 600, 360);
+    ag.addColorStop(0,   'rgba('+t[0]+','+Math.round(t[1]*.5)+','+Math.round(t[2]*.5)+',.28)');
+    ag.addColorStop(.35, 'rgba('+Math.round(t[0]*.7)+','+Math.round(t[1]*.2)+','+Math.round(t[2]*.2)+',.10)');
+    ag.addColorStop(.7,  'rgba(30,5,5,.04)'); ag.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = ag; c.fillRect(0, 0, 512, 1024);
+    return new THREE.CanvasTexture(ec);
+  }
+  var caseTex = makeBrushed(), goldTex = makeGold();
+  var bulletTex = drawBullet('#F03060', '#8A0A28');
+
+  /* MATERIALS */
+  var mCase   = new THREE.MeshPhysicalMaterial({ map: caseTex, color: 0xC08060, metalness: .82, roughness: .18, envMap: envMap, envMapIntensity: 1.8, clearcoat: .35, clearcoatRoughness: .18 });
+  var mBot    = new THREE.MeshPhysicalMaterial({ color: 0x6A3820, metalness: .75, roughness: .28, envMap: envMap, envMapIntensity: 1.2 });
+  var mGold   = new THREE.MeshPhysicalMaterial({ map: goldTex, color: 0xD4A040, metalness: .98, roughness: .02, envMap: envMap, envMapIntensity: 4.5, clearcoat: 1, clearcoatRoughness: 0 });
+  var mBullet = new THREE.MeshPhysicalMaterial({ map: bulletTex, color: 0xB01830, metalness: .05, roughness: .04, clearcoat: 1, clearcoatRoughness: .02, envMap: envMap, envMapIntensity: 1.6 });
+  var mSleeve = new THREE.MeshPhysicalMaterial({ color: 0x18060E, metalness: .2, roughness: .04, transparent: true, opacity: .9, envMap: envMap, envMapIntensity: 2.2, clearcoat: 1, clearcoatRoughness: 0 });
+
+  /* LIPSTICK */
+  var lipG = new THREE.Group(); scene.add(lipG);
+  function am(geo, mat, py, sh) { var m = new THREE.Mesh(geo, mat); m.position.y = py; if (sh) m.castShadow = true; lipG.add(m); return m; }
+  am(new THREE.CylinderGeometry(.37, .40, 3.2, 64, 4), mCase,   -.65, true);
+  am(new THREE.CylinderGeometry(.33, .37,  .1, 64),    mCase,    .70, false);
+  am(new THREE.CylinderGeometry(.40, .37,  .32, 64),   mBot,   -2.42, true);
+  am(new THREE.CylinderGeometry(.37, .37,  .05, 64),   mBot,   -2.60, false);
+  var c1 = am(new THREE.TorusGeometry(.385, .055, 24, 80), mGold, .60, true);  c1.rotation.x = Math.PI/2;
+  var c2 = am(new THREE.TorusGeometry(.385, .018, 12, 80), mGold, .42, false); c2.rotation.x = Math.PI/2;
+  [-.20, .05, .26].forEach(function(y){ var e = am(new THREE.TorusGeometry(.392,.007,8,80),mGold,y,false); e.rotation.x=Math.PI/2; });
+  am(new THREE.CylinderGeometry(.33, .33, .85, 48), mSleeve, 1.10, false);
+  var bpts = [new THREE.Vector2(0,0),new THREE.Vector2(.33,0),new THREE.Vector2(.33,.42),new THREE.Vector2(.32,.60),new THREE.Vector2(.28,.80),new THREE.Vector2(.20,1.00),new THREE.Vector2(.10,1.14),new THREE.Vector2(.03,1.22),new THREE.Vector2(0,1.22)];
+  am(new THREE.LatheGeometry(bpts, 64), mBullet, 1.33, true);
+  var glint = new THREE.Mesh(new THREE.SphereGeometry(.022,12,12), new THREE.MeshPhysicalMaterial({color:0xFFCCCC,emissive:0xFF6666,emissiveIntensity:.5,metalness:0,roughness:0}));
+  glint.position.set(.005, 2.60, .01); lipG.add(glint);
+  /* halo */
+  var gc = document.createElement('canvas'); gc.width = 256; gc.height = 256;
+  var gx = gc.getContext('2d'); var gg = gx.createRadialGradient(128,128,0,128,128,128);
+  gg.addColorStop(0,'rgba(199,149,108,.38)'); gg.addColorStop(.45,'rgba(199,149,108,.12)'); gg.addColorStop(1,'rgba(0,0,0,0)');
+  gx.fillStyle = gg; gx.fillRect(0,0,256,256);
+  var fg = new THREE.Mesh(new THREE.CircleGeometry(2.2,64),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(gc),transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));
+  fg.rotation.x = -Math.PI/2; fg.position.y = -3.2; lipG.add(fg);
+  /* aura */
+  var aura = new THREE.Mesh(new THREE.PlaneGeometry(4.5,9),new THREE.MeshBasicMaterial({map:rebuildAura('#F03060'),transparent:true,opacity:1,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+  aura.position.z = -.5; lipG.add(aura);
+
+  /* ORBITAL RINGS */
+  var orbs = [];
+  [{r:1.85,tx:Math.PI/2,tz:0,sp:.18,op:.11},{r:2.4,tx:Math.PI/2+.38,tz:.2,sp:.12,op:.08},{r:3.1,tx:Math.PI/2-.28,tz:-.18,sp:.08,op:.06}].forEach(function(d){
+    var m = new THREE.Mesh(new THREE.TorusGeometry(d.r,.004,8,120),new THREE.MeshBasicMaterial({color:0xC89050,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+    m.rotation.x = d.tx; m.rotation.z = d.tz; m._to = d.op; m._sp = d.sp;
+    scene.add(m); orbs.push(m);
+  });
+  var gemG = new THREE.Group(); scene.add(gemG);
+  var gmM = new THREE.MeshPhysicalMaterial({color:0xE8C068,metalness:.98,roughness:.02,envMap:envMap,envMapIntensity:4});
+  for (var gi = 0; gi < 12; gi++) { var ga=(gi/12)*Math.PI*2; var gm=new THREE.Mesh(new THREE.SphereGeometry(.028,10,10),gmM); gm.position.set(Math.cos(ga)*1.85,0,Math.sin(ga)*1.85); gemG.add(gm); }
+  gemG.rotation.x = Math.PI/2; gemG.scale.set(0,0,0);
+
+  /* LIGHTS */
+  var kL = new THREE.SpotLight(0xFFEEDD,6,25,Math.PI*.18,.25,1.5); kL.position.set(-3.5,7,5.5); kL.castShadow=true; kL.shadow.mapSize.width=1024; kL.shadow.mapSize.height=1024; kL.shadow.radius=3; scene.add(kL);
+  var rL = new THREE.SpotLight(0xDDEEFF,5,20,Math.PI*.14,.4,1); rL.position.set(1,4,-7); scene.add(rL);
+  var fL = new THREE.PointLight(0x8899CC,1.8,20); fL.position.set(5,-1,4); scene.add(fL);
+  var gL = new THREE.PointLight(0xE8C068,3.5,5); gL.position.set(.6,.6,1.2); lipG.add(gL);
+  scene.add(new THREE.AmbientLight(0x1A0A08,.6));
+  var bL = new THREE.PointLight(0xC07040,.8,12); bL.position.set(0,-5,2); scene.add(bL);
+
+  /* PARTICLES */
+  var pGeo = new THREE.BufferGeometry(), pPos = new Float32Array(1100*3);
+  for (var pi=0;pi<1100;pi++){var pa=Math.random()*Math.PI*2,pb=Math.random()<.6,pr=pb?(1.2+Math.random()*1.8):(3+Math.random()*5),ph=pb?(Math.random()-.5)*5.5:(Math.random()-.5)*9;pPos[pi*3]=Math.cos(pa)*pr;pPos[pi*3+1]=ph;pPos[pi*3+2]=Math.sin(pa)*pr;}
+  pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+  var pMat = new THREE.PointsMaterial({color:0xE8C068,size:.018,sizeAttenuation:true,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false});
+  var pts = new THREE.Points(pGeo,pMat); scene.add(pts);
+
+  /* ══ COLOUR PICKER ══ */
+  var tCol = new THREE.Color(0xB01830), cCol = new THREE.Color(0xB01830);
+  function applyCol(ht,hb,ci) {
+    tCol.set(ci);
+    mBullet.map = drawBullet(ht,hb); mBullet.needsUpdate = true;
+    aura.material.map = rebuildAura(ht); aura.material.needsUpdate = true;
+  }
+  document.querySelectorAll('.sw').forEach(function(sw){
+    sw.addEventListener('click',function(){
+      document.querySelectorAll('.sw').forEach(function(s){s.classList.remove('active');});
+      sw.classList.add('active');
+      applyCol(sw.dataset.ht, sw.dataset.hb, parseInt(sw.dataset.c,16));
+    });
+  });
+
+  /* ══ MOUSE PARALLAX ══ */
+  var mxN=0, myN=0, camRX=0, camRY=0;
+  document.addEventListener('mousemove',function(e){
+    mxN = (e.clientX/innerWidth  - .5)*2;
+    myN = (e.clientY/innerHeight - .5)*2;
+  });
+  document.addEventListener('touchmove',function(e){
+    if(e.touches.length>0){
+      mxN = (e.touches[0].clientX/innerWidth  - .5)*2;
+      myN = (e.touches[0].clientY/innerHeight - .5)*2;
+    }
+  },{passive:true});
+
+  /* store base opacity ONCE */
+  lipG.traverse(function(ch){
+    if(ch.material && ch.material.transparent && ch.material.opacity!==undefined)
+      ch.material._bOp = ch.material.opacity;
+  });
+
+  /* ══ RENDER LOOP ══ */
+  var ticker = 0;
+  var lipCurX = 0, lipCurS = 1;
+
+  function loop(){
+    requestAnimationFrame(loop);
+    ticker += .006;
+
+    /* smooth scene value 0-2 */
+    smoothSec += (currentSection - smoothSec) * .055;
+    var sp = smoothSec; /* 0=s1, 1=s2, 2=s3 */
+
+    /* camera mouse parallax */
+    camRX += (myN * .14 - camRX) * .05;
+    camRY += (mxN * .20 - camRY) * .05;
+    camera.position.x = camRY * .35;
+    camera.position.y = .5 - camRX * .35;
+    camera.lookAt(0, 0, 0);
+
+    /* lipstick rotation */
+    lipG.rotation.y = ticker * .28 + camRY * .55;
+    lipG.rotation.x = camRX * .38;
+
+    /* lipstick position per scene */
+    var tgX, tgS, lipOp;
+    if (sp < 1) {
+      /* s1→s2: centre→left */
+      tgX  = -sp * 2.5;
+      tgS  = 1 - sp * .34;
+      lipOp = 1;
+    } else {
+      /* s2→s3: left→right+fade */
+      var t = sp - 1;
+      tgX  = -2.5 + t * 5.5;
+      tgS  = (1-.34) - t * .34;
+      lipOp = Math.max(0, 1 - t * 1.6);
+    }
+    lipCurX += (tgX - lipCurX) * .06;
+    lipCurS += (Math.max(.02, tgS) - lipCurS) * .06;
+    lipG.position.x = lipCurX;
+    lipG.scale.set(lipCurS, lipCurS, lipCurS);
+    lipG.traverse(function(ch){
+      if(ch.material && ch.material._bOp !== undefined)
+        ch.material.opacity = ch.material._bOp * lipOp;
+    });
+
+    /* orbital rings: visible in s2 */
+    orbs.forEach(function(o){
+      var on = (sp > .15 && sp < 1.85) ? o._to : 0;
+      o.material.opacity += (on - o.material.opacity) * .04;
+      o.rotation.y += o._sp * .016;
+    });
+    var gt = (sp > .3 && sp < 1.8) ? 1 : 0;
+    gemG.scale.x += (gt - gemG.scale.x) * .04;
+    gemG.scale.y = gemG.scale.z = gemG.scale.x;
+    gemG.rotation.y = ticker * .18;
+
+    /* particles */
+    pts.rotation.y = ticker * .10 + mxN * .10;
+    pts.rotation.x = myN * .04;
+    pMat.opacity = .48 - Math.min(sp-1,1)*Math.max(0,sp-1) * .28;
+
+    /* lights */
+    rL.intensity = 5 + Math.sin(ticker * .9)  * .8;
+    gL.intensity = 3.5 + Math.sin(ticker * 1.4) * 1;
+
+    /* camera z */
+    camera.position.z += ((sp > .2 && sp < 1.8 ? 11.5 : 9) - camera.position.z) * .04;
+
+    /* colour lerp */
+    cCol.lerp(tCol, .06);
+    mBullet.color.copy(cCol);
+
+    renderer.render(scene, camera);
+  }
+
+  /* rise on load */
+  lipG.position.y = -9;
+  (function rise(){
+    lipG.position.y += (0 - lipG.position.y) * .032;
+    if (Math.abs(lipG.position.y) > .04) requestAnimationFrame(rise);
+    else lipG.position.y = 0;
+  })();
+
+  loop();
+
+  /* resize */
+  window.addEventListener('resize', function(){
+    renderer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+  });
+
+})();
+</script>
+</body>
+</html>
